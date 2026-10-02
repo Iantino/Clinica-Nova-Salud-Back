@@ -4,6 +4,7 @@ const cors = require('cors');
 const session = require('express-session');
 
 const healthRoutes = require('./routes/health.routes');
+const authRoutes = require('./routes/auth.routes');
 const { notFound, errorHandler } = require('./middlewares/error.middleware');
 
 const app = express();
@@ -39,6 +40,7 @@ app.use(
 
 // Rutas de la API
 app.use('/api/health', healthRoutes);
+app.use('/api/auth', authRoutes);
 
 // Manejo de rutas inexistentes y errores
 app.use(notFound);
