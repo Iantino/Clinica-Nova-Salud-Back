@@ -5,6 +5,13 @@ const session = require('express-session');
 
 const healthRoutes = require('./routes/health.routes');
 const authRoutes = require('./routes/auth.routes');
+const usuariosRoutes = require('./routes/usuarios.routes');
+const pacientesRoutes = require('./routes/pacientes.routes');
+const medicosRoutes = require('./routes/medicos.routes');
+const citasRoutes = require('./routes/citas.routes');
+const consultasRoutes = require('./routes/consultas.routes');
+const portalRoutes = require('./routes/portal.routes');
+const reportesRoutes = require('./routes/reportes.routes');
 const { notFound, errorHandler } = require('./middlewares/error.middleware');
 
 const app = express();
@@ -41,6 +48,13 @@ app.use(
 // Rutas de la API
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/usuarios', usuariosRoutes);
+app.use('/api/pacientes', pacientesRoutes);
+app.use('/api/medicos', medicosRoutes);
+app.use('/api/citas', citasRoutes);
+app.use('/api/consultas', consultasRoutes);
+app.use('/api/portal', portalRoutes);
+app.use('/api/reportes', reportesRoutes);
 
 // Manejo de rutas inexistentes y errores
 app.use(notFound);

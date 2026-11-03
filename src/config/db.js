@@ -11,6 +11,8 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   charset: 'utf8mb4',
   timezone: '-06:00', // Hora de Guatemala
+  // Las fechas llegan como texto ("2026-10-15") para evitar corrimientos por zona horaria
+  dateStrings: true,
 });
 
 module.exports = pool;

@@ -24,10 +24,7 @@ function logout(req, res, next) {
 }
 
 function me(req, res) {
-  if (!req.session.usuario) {
-    return res.status(401).json({ message: 'No has iniciado sesión' });
-  }
-  res.json({ usuario: req.session.usuario });
+  res.json({ usuario: req.usuario });
 }
 
 module.exports = { login, logout, me };
