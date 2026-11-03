@@ -1,6 +1,6 @@
 const nodemailer = require('nodemailer');
 
-function correoConfigurado() {
+function smtpConfigurado() {
   return Boolean(
     process.env.SMTP_HOST &&
     process.env.SMTP_PORT &&
@@ -8,6 +8,16 @@ function correoConfigurado() {
     process.env.SMTP_PASSWORD &&
     process.env.SMTP_FROM
   );
+}
+
+function resendConfigurado() {
+  return Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM);
+}
+
+function correoConfigurado() {
+  // Railway bloquea SMTP en los planes Free, Trial y Hobby. En producción se
+  // requiere una API HTTPS para que los envíos no se queden esperando hasta expirar.
+  return resendConfigurado() || (process.env.NODE_ENV !== 'production' && smtpConfigurado());
 }
 
 function crearTransportador() {
@@ -24,6 +34,56 @@ function crearTransportador() {
   });
 }
 
+async function enviarPorResend({ to, subject, text, html }) {
+  const respuesta = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: process.env.RESEND_FROM,
+      to: [to],
+      subject,
+      text,
+      ...(html ? { html } : {}),
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  if (!respuesta.ok) {
+    const error = new Error('El proveedor de correo rechazó el mensaje');
+    error.code = `RESEND_HTTP_${respuesta.status}`;
+    throw error;
+  }
+
+  return respuesta.json();
+}
+
+async function enviarCorreo({ to, subject, text, html }) {
+  if (resendConfigurado()) {
+    return enviarPorResend({ to, subject, text, html });
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    const error = new Error('Configura RESEND_API_KEY y RESEND_FROM para el correo de producción');
+    error.code = 'EMAIL_PROVIDER_NOT_CONFIGURED';
+    throw error;
+  }
+
+  if (!smtpConfigurado()) {
+    const error = new Error('Configura Resend o SMTP para enviar correos');
+    error.code = 'EMAIL_PROVIDER_NOT_CONFIGURED';
+    throw error;
+  }
+
+  const sender = process.env.SMTP_FROM.includes('<')
+    ? process.env.SMTP_FROM
+    : `Clínica NovaSalud <${process.env.SMTP_FROM}>`;
+
+  return crearTransportador().sendMail({ from: sender, to, subject, text, html });
+}
+
 function escaparHtml(valor) {
   return String(valor).replace(/[&<>"']/g, (caracter) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -31,11 +91,9 @@ function escaparHtml(valor) {
 }
 
 async function enviarCorreoRestablecimiento({ correo, nombre, url }) {
-  if (!correoConfigurado()) throw new Error('SMTP no está configurado');
   const nombreSeguro = escaparHtml(nombre || '');
   const urlSegura = escaparHtml(url);
-  return crearTransportador().sendMail({
-    from: `Clínica NovaSalud <${process.env.SMTP_FROM}>`,
+  return enviarCorreo({
     to: correo,
     subject: 'Restablece tu contraseña de NovaSalud',
     text: [
@@ -53,4 +111,9 @@ async function enviarCorreoRestablecimiento({ correo, nombre, url }) {
   });
 }
 
-module.exports = { correoConfigurado, crearTransportador, enviarCorreoRestablecimiento };
+module.exports = {
+  correoConfigurado,
+  crearTransportador,
+  enviarCorreo,
+  enviarCorreoRestablecimiento,
+};

@@ -2,7 +2,7 @@ const { createHash, randomBytes } = require('node:crypto');
 const bcrypt = require('bcrypt');
 const pool = require('../config/db');
 const HttpError = require('../utils/http-error');
-const { enviarCorreoRestablecimiento } = require('./correo.service');
+const { correoConfigurado, enviarCorreoRestablecimiento } = require('./correo.service');
 
 const COSTO_BCRYPT = 10;
 const MENSAJE_ENLACE_INVALIDO = 'El enlace no es válido o ya venció. Solicita uno nuevo.';
@@ -12,6 +12,12 @@ function hashToken(token) {
 }
 
 async function solicitarRestablecimiento(correo) {
+  // Responder igual para todas las direcciones si falta la configuración evita
+  // filtrar si la cuenta existe y permite mostrar una causa útil en la interfaz.
+  if (!correoConfigurado()) {
+    throw new HttpError(503, 'El servicio de correo no está configurado. Intenta más tarde.');
+  }
+
   const [filas] = await pool.query(
     'SELECT id, nombre FROM usuarios WHERE correo = ? AND activo = TRUE LIMIT 1',
     [correo]

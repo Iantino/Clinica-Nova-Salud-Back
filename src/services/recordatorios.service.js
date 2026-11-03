@@ -1,29 +1,5 @@
-const nodemailer = require('nodemailer');
 const pool = require('../config/db');
-
-function correoConfigurado() {
-  return Boolean(
-    process.env.SMTP_HOST &&
-    process.env.SMTP_PORT &&
-    process.env.SMTP_USER &&
-    process.env.SMTP_PASSWORD &&
-    process.env.SMTP_FROM
-  );
-}
-
-function crearTransportador() {
-  const port = Number(process.env.SMTP_PORT);
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port,
-    secure: port === 465,
-    ...(process.env.SMTP_USER ? {
-      // Google muestra la contraseña de aplicación en grupos; Nodemailer recibe
-      // el mismo secreto sin espacios.
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD.replace(/\s+/g, '') },
-    } : {}),
-  });
-}
+const { correoConfigurado, enviarCorreo } = require('./correo.service');
 
 function fechaLegible(fecha, hora) {
   const [anio, mes, dia] = fecha.split('-').map(Number);
@@ -54,12 +30,10 @@ async function enviarRecordatorios() {
   );
   if (!citas.length) return { enviados: 0, omitidos: false };
 
-  const transportador = crearTransportador();
   let enviados = 0;
   for (const cita of citas) {
     try {
-      await transportador.sendMail({
-        from: `Clínica NovaSalud <${process.env.SMTP_FROM}>`,
+      await enviarCorreo({
         to: cita.correo,
         subject: 'Recordatorio de tu cita en Clínica NovaSalud',
         text: [

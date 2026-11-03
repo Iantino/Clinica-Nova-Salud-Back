@@ -2,7 +2,7 @@ const { enviarRecordatorios, correoConfigurado } = require('../services/recordat
 
 function iniciarRecordatorios() {
   if (!correoConfigurado()) {
-    console.info('Recordatorios por correo desactivados: configura SMTP_HOST, SMTP_PORT y SMTP_FROM en .env');
+    console.info('Correos desactivados: configura RESEND_API_KEY y RESEND_FROM en producción');
     return null;
   }
 
