@@ -1,4 +1,5 @@
 const authService = require('../services/auth.service');
+const recuperacionService = require('../services/recuperacion.service');
 
 async function login(req, res, next) {
   try {
@@ -27,4 +28,22 @@ function me(req, res) {
   res.json({ usuario: req.usuario });
 }
 
-module.exports = { login, logout, me };
+async function solicitarRestablecimiento(req, res, next) {
+  try {
+    await recuperacionService.solicitarRestablecimiento(req.body.correo);
+    res.json({ mensaje: 'Si el correo corresponde a una cuenta activa, enviaremos un enlace para cambiar la contraseña.' });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function restablecerContrasena(req, res, next) {
+  try {
+    const resultado = await recuperacionService.restablecerContrasena(req.body.token, req.body.password);
+    res.json(resultado);
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { login, logout, me, solicitarRestablecimiento, restablecerContrasena };
