@@ -14,10 +14,14 @@ function resendConfigurado() {
   return Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM);
 }
 
+function appsScriptConfigurado() {
+  return Boolean(process.env.GOOGLE_APPS_SCRIPT_URL && process.env.GOOGLE_APPS_SCRIPT_SECRET);
+}
+
 function correoConfigurado() {
   // Railway bloquea SMTP en los planes Free, Trial y Hobby. En producción se
-  // requiere una API HTTPS para que los envíos no se queden esperando hasta expirar.
-  return resendConfigurado() || (process.env.NODE_ENV !== 'production' && smtpConfigurado());
+  // requiere un proveedor HTTPS. Apps Script permite enviar desde Gmail sin dominio propio.
+  return resendConfigurado() || appsScriptConfigurado() || (process.env.NODE_ENV !== 'production' && smtpConfigurado());
 }
 
 function crearTransportador() {
@@ -60,13 +64,41 @@ async function enviarPorResend({ to, subject, text, html }) {
   return respuesta.json();
 }
 
+async function enviarPorAppsScript({ to, subject, text, html }) {
+  const respuesta = await fetch(process.env.GOOGLE_APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      token: process.env.GOOGLE_APPS_SCRIPT_SECRET,
+      to,
+      subject,
+      text,
+      ...(html ? { html } : {}),
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const resultado = await respuesta.json().catch(() => ({}));
+
+  if (!respuesta.ok || resultado.ok !== true) {
+    const error = new Error('Google Apps Script no pudo enviar el mensaje');
+    error.code = resultado.code || `APPS_SCRIPT_HTTP_${respuesta.status}`;
+    throw error;
+  }
+
+  return resultado;
+}
+
 async function enviarCorreo({ to, subject, text, html }) {
   if (resendConfigurado()) {
     return enviarPorResend({ to, subject, text, html });
   }
 
+  if (appsScriptConfigurado()) {
+    return enviarPorAppsScript({ to, subject, text, html });
+  }
+
   if (process.env.NODE_ENV === 'production') {
-    const error = new Error('Configura RESEND_API_KEY y RESEND_FROM para el correo de producción');
+    const error = new Error('Configura Google Apps Script o Resend para el correo de producción');
     error.code = 'EMAIL_PROVIDER_NOT_CONFIGURED';
     throw error;
   }
@@ -112,6 +144,7 @@ async function enviarCorreoRestablecimiento({ correo, nombre, url }) {
 }
 
 module.exports = {
+  appsScriptConfigurado,
   correoConfigurado,
   crearTransportador,
   enviarCorreo,

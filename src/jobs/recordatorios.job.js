@@ -2,7 +2,7 @@ const { enviarRecordatorios, correoConfigurado } = require('../services/recordat
 
 function iniciarRecordatorios() {
   if (!correoConfigurado()) {
-    console.info('Correos desactivados: configura RESEND_API_KEY y RESEND_FROM en producción');
+    console.info('Correos desactivados: configura Apps Script o Resend en producción');
     return null;
   }
 
