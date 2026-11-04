@@ -143,10 +143,31 @@ async function enviarCorreoRestablecimiento({ correo, nombre, url }) {
   });
 }
 
+async function enviarCorreoContrasenaActualizada({ correo, nombre }) {
+  const nombreSeguro = escaparHtml(nombre || '');
+  return enviarCorreo({
+    to: correo,
+    subject: 'Tu contraseña se cambió correctamente | Clínica NovaSalud',
+    text: [
+      `Hola ${nombre || ''},`,
+      '',
+      'La contraseña de tu cuenta de Clínica NovaSalud se cambió correctamente.',
+      'Si reconoces este cambio, no necesitas hacer nada más.',
+      'Si no lo reconoces, ponte en contacto con la clínica para proteger tu cuenta.',
+      '',
+      'Por seguridad, nunca incluimos tu contraseña en este correo.',
+      '',
+      'Clínica NovaSalud',
+    ].join('\n'),
+    html: `<!doctype html><html lang="es"><body style="margin:0;background:#f1f8f5;font-family:Arial,sans-serif;color:#17221d;padding:32px 16px"><div style="max-width:560px;margin:auto;background:#fff;border:1px solid #dcebe2;border-radius:18px;padding:32px"><p style="color:#08715e;font-weight:bold;letter-spacing:.12em;font-size:12px">CLÍNICA NOVASALUD</p><h1 style="font-size:24px">Contraseña actualizada</h1><p>Hola ${nombreSeguro},</p><p>La contraseña de tu cuenta se cambió correctamente.</p><p>Si reconoces este cambio, no necesitas hacer nada más. Si no lo reconoces, ponte en contacto con la clínica para proteger tu cuenta.</p><p style="font-size:13px;color:#64748b">Por seguridad, nunca incluimos tu contraseña en este correo.</p></div></body></html>`,
+  });
+}
+
 module.exports = {
   appsScriptConfigurado,
   correoConfigurado,
   crearTransportador,
   enviarCorreo,
+  enviarCorreoContrasenaActualizada,
   enviarCorreoRestablecimiento,
 };

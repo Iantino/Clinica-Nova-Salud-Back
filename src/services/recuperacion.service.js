@@ -2,7 +2,11 @@ const { createHash, randomBytes } = require('node:crypto');
 const bcrypt = require('bcrypt');
 const pool = require('../config/db');
 const HttpError = require('../utils/http-error');
-const { correoConfigurado, enviarCorreoRestablecimiento } = require('./correo.service');
+const {
+  correoConfigurado,
+  enviarCorreoContrasenaActualizada,
+  enviarCorreoRestablecimiento,
+} = require('./correo.service');
 
 const COSTO_BCRYPT = 10;
 const MENSAJE_ENLACE_INVALIDO = 'El enlace no es válido o ya venció. Solicita uno nuevo.';
@@ -59,9 +63,10 @@ async function restablecerContrasena(token, password) {
   try {
     await conexion.beginTransaction();
     const [filas] = await conexion.query(
-      `SELECT id, usuario_id
-         FROM tokens_restablecimiento
-        WHERE token_hash = ? AND usado_en IS NULL AND vence_en > NOW()
+      `SELECT t.id, t.usuario_id, u.correo, u.nombre, u.apellido
+         FROM tokens_restablecimiento t
+         JOIN usuarios u ON u.id = t.usuario_id
+        WHERE t.token_hash = ? AND t.usado_en IS NULL AND t.vence_en > NOW()
         LIMIT 1 FOR UPDATE`,
       [hashToken(token)]
     );
@@ -82,6 +87,17 @@ async function restablecerContrasena(token, password) {
       [registro.usuario_id]
     );
     await conexion.commit();
+
+    try {
+      await enviarCorreoContrasenaActualizada({
+        correo: registro.correo,
+        nombre: [registro.nombre, registro.apellido].filter(Boolean).join(' '),
+      });
+    } catch (error) {
+      // La contraseña ya quedó guardada; el aviso por correo no revierte el cambio.
+      console.error(`No se pudo enviar el aviso de cambio de contraseña: ${error.code || 'error de correo'}`);
+    }
+
     return { mensaje: 'La contraseña se cambió correctamente.' };
   } catch (error) {
     await conexion.rollback();
